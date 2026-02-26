@@ -309,8 +309,24 @@
             display: none;
         }
 
+        .mobile-only {
+            display: none;
+        }
+
+        .desktop-only {
+            display: inline;
+        }
+
         /* --- RESPONSIVE MOBILE OPTIMIZATION --- */
         @media (max-width: 768px) {
+            .mobile-only {
+                display: inline;
+            }
+
+            .desktop-only {
+                display: none;
+            }
+
             body {
                 padding: 10px;
             }
@@ -331,22 +347,17 @@
             }
 
             .tab-bar {
-                overflow-x: auto;
-                white-space: nowrap;
-                justify-content: flex-start;
-                scrollbar-width: none;
-                /* Hide scrollbar Firefox */
-            }
-
-            .tab-bar::-webkit-scrollbar {
-                display: none;
-                /* Hide scrollbar Chrome/Safari */
+                justify-content: center;
+                gap: 5px;
+                padding: 5px;
             }
 
             .tab {
-                padding: 10px 15px;
-                font-size: 0.75rem;
-                flex: 0 0 auto;
+                padding: 8px 5px;
+                font-size: 0.7rem;
+                flex: 1;
+                text-align: center;
+                border-bottom-width: 1px;
             }
 
             .grid-stats {
@@ -357,33 +368,79 @@
 
             .stat-card {
                 padding: 10px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 60px;
             }
 
             .stat-value {
-                font-size: 1.1rem !important;
+                font-size: 0.9rem !important;
             }
 
-            /* Responsive Tables */
+            .stat-label {
+                font-size: 0.65rem;
+                margin-bottom: 2px;
+            }
+
+            /* Responsive Cards from Tables */
             .table-container {
-                width: 100%;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                margin-bottom: 20px;
+                overflow: visible;
             }
 
-            table {
-                min-width: 600px;
-                /* Force scroll instead of squishing */
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+            }
+
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+            tr {
+                border: 1px solid var(--border-color);
+                margin-bottom: 15px;
+                padding: 10px;
+                border-radius: 6px;
+                background: rgba(48, 54, 61, 0.2);
+            }
+
+            td {
+                border: none !important;
+                position: relative;
+                padding-left: 40% !important;
+                text-align: right;
+                margin-bottom: 8px;
+                min-height: 25px;
+                font-size: 0.8rem;
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+            }
+
+            td:last-child {
+                margin-bottom: 0;
+            }
+
+            td:before {
+                position: absolute;
+                left: 10px;
+                width: 35%;
+                white-space: nowrap;
+                text-align: left;
+                font-weight: bold;
+                color: var(--dim-text);
+                content: attr(data-label);
             }
 
             .content-area {
                 padding: 15px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .grid-stats {
-                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -405,10 +462,22 @@
         </div>
 
         <div class="tab-bar">
-            <div class="tab active" onclick="switchTab('dashboard', this)">PROMPT > ./DASHBOARD</div>
-            <div class="tab" onclick="switchTab('performance', this)">PROMPT > ./ANALYSIS</div>
-            <div class="tab" onclick="switchTab('signals', this)">PROMPT > ./LOG_SIGNALS</div>
-            <div class="tab" onclick="switchTab('logs', this)">PROMPT > ./SYSTEM_RAW</div>
+            <div class="tab active" onclick="switchTab('dashboard', this)">
+                <span class="desktop-only">PROMPT > ./DASHBOARD</span>
+                <span class="mobile-only">Dashboard</span>
+            </div>
+            <div class="tab" onclick="switchTab('performance', this)">
+                <span class="desktop-only">PROMPT > ./ANALYSIS</span>
+                <span class="mobile-only">Analysis</span>
+            </div>
+            <div class="tab" onclick="switchTab('signals', this)">
+                <span class="desktop-only">PROMPT > ./LOG_SIGNALS</span>
+                <span class="mobile-only">Logs</span>
+            </div>
+            <div class="tab" onclick="switchTab('logs', this)">
+                <span class="desktop-only">PROMPT > ./SYSTEM_RAW</span>
+                <span class="mobile-only">System</span>
+            </div>
         </div>
 
         <div class="content-area" id="main-content">
@@ -564,12 +633,12 @@
             activeBody.innerHTML = '';
             data.active.forEach(s => {
                 const row = `<tr>
-                <td>${s.id}</td>
-                <td>${s.pair}</td>
-                <td class="signal-${s.direction.toLowerCase()}">${s.direction}</td>
-                <td>${s.entry}</td>
-                <td><span style="color:var(--accent-color)">${s.tp}</span> / <span style="color:var(--error-color)">${s.sl}</span></td>
-                <td><span class="badge status-active">${s.state}</span></td>
+                <td data-label="ID">${s.id}</td>
+                <td data-label="PAIR">${s.pair}</td>
+                <td data-label="TYPE" class="signal-${s.direction.toLowerCase()}">${s.direction}</td>
+                <td data-label="ENTRY">${s.entry}</td>
+                <td data-label="TP / SL"><span style="color:var(--accent-color)">${s.tp}</span> / <span style="color:var(--error-color)">${s.sl}</span></td>
+                <td data-label="STATUS"><span class="badge status-active">${s.state}</span></td>
             </tr>`;
                 activeBody.innerHTML += row;
             });
@@ -580,12 +649,12 @@
             data.history.forEach(h => {
                 const outcomeClass = h.outcome === 'CLOSED_WIN' ? 'status-win' : 'status-loss';
                 const row = `<tr>
-                <td style="color:var(--dim-text)">${h.time}</td>
-                <td>${h.id}</td>
-                <td>${h.pair}</td>
-                <td class="signal-${h.direction.toLowerCase()}">${h.direction}</td>
-                <td>${h.price}</td>
-                <td><span class="badge ${outcomeClass}">${h.outcome}</span></td>
+                <td data-label="TIME" style="color:var(--dim-text)">${h.time}</td>
+                <td data-label="ID">${h.id}</td>
+                <td data-label="PAIR">${h.pair}</td>
+                <td data-label="SIDE" class="signal-${h.direction.toLowerCase()}">${h.direction}</td>
+                <td data-label="PRICE">${h.price}</td>
+                <td data-label="OUTCOME"><span class="badge ${outcomeClass}">${h.outcome}</span></td>
             </tr>`;
                 historyBody.innerHTML += row;
             });
