@@ -2,6 +2,8 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base target="_top">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
@@ -306,6 +308,84 @@
         .hidden {
             display: none;
         }
+
+        /* --- RESPONSIVE MOBILE OPTIMIZATION --- */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .terminal-header {
+                flex-direction: column;
+                gap: 5px;
+                text-align: center;
+                padding: 10px;
+            }
+
+            .window-controls {
+                display: none;
+            }
+
+            .system-title {
+                font-size: 0.9rem;
+            }
+
+            .tab-bar {
+                overflow-x: auto;
+                white-space: nowrap;
+                justify-content: flex-start;
+                scrollbar-width: none;
+                /* Hide scrollbar Firefox */
+            }
+
+            .tab-bar::-webkit-scrollbar {
+                display: none;
+                /* Hide scrollbar Chrome/Safari */
+            }
+
+            .tab {
+                padding: 10px 15px;
+                font-size: 0.75rem;
+                flex: 0 0 auto;
+            }
+
+            .grid-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .stat-card {
+                padding: 10px;
+            }
+
+            .stat-value {
+                font-size: 1.1rem !important;
+            }
+
+            /* Responsive Tables */
+            .table-container {
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin-bottom: 20px;
+            }
+
+            table {
+                min-width: 600px;
+                /* Force scroll instead of squishing */
+            }
+
+            .content-area {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .grid-stats {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -354,40 +434,51 @@
                 </div>
 
                 <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] RUNNING_SIGNALS</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Pair</th>
-                            <th>Type</th>
-                            <th>Entry</th>
-                            <th>TP/SL</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="active-signals-body">
-                        <!-- Data rows here -->
-                    </tbody>
-                </table>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Pair</th>
+                                <th>Type</th>
+                                <th>Entry</th>
+                                <th>TP/SL</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="active-signals-body">
+                            <!-- Data rows here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Signals History -->
+            <div id="view-performance" class="hidden">
+                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] MODEL_CORE_ANALYSIS</h3>
+                <div id="perf-content">
+                    Updating matrix coefficients...
+                </div>
+            </div>
+
             <div id="view-signals" class="hidden">
                 <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] EXECUTION_HISTORY</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>ID</th>
-                            <th>Pair</th>
-                            <th>Side</th>
-                            <th>Price</th>
-                            <th>Outcome</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-signals-body">
-                    </tbody>
-                </table>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>ID</th>
+                                <th>Pair</th>
+                                <th>Side</th>
+                                <th>Price</th>
+                                <th>Outcome</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-signals-body">
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Logs View -->
@@ -395,14 +486,6 @@
                 <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] RAW_SYSTEM_OUTPUT</h3>
                 <div id="log-container">
                     <!-- Log lines here -->
-                </div>
-            </div>
-
-            <!-- Performance View -->
-            <div id="view-performance" class="hidden">
-                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] MODEL_CORE_ANALYSIS</h3>
-                <div id="perf-content">
-                    Updating matrix coefficients...
                 </div>
             </div>
         </div>
