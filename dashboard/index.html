@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --term-bg: #161b22;
+            --accent-color: #2ea043;
+            --text-color: #c9d1d9;
+            --dim-text: #8b949e;
+            --error-color: #f85149;
+            --warn-color: #d29922;
+            --info-color: #58a6ff;
+            --border-color: #30363d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Fira Code', monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .terminal-container {
+            background-color: var(--term-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1;
+        }
+
+        .terminal-header {
+            background-color: #21262d;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .close {
+            background-color: #ff5f56;
+        }
+
+        .minimize {
+            background-color: #ffbd2e;
+        }
+
+        .maximize {
+            background-color: #27c93f;
+        }
+
+        .system-status {
+            font-size: 0.8rem;
+            color: var(--dim-text);
+        }
+
+        .tab-bar {
+            display: flex;
+            background-color: #0d1117;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-right: 1px solid var(--border-color);
+            color: var(--dim-text);
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background-color: var(--term-bg);
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        .tab:hover:not(.active) {
+            background-color: #21262d;
+            color: var(--text-color);
+        }
+
+        .content-area {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .content-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .content-area::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 10px;
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(48, 54, 61, 0.2);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--dim-text);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--accent-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px;
+            color: var(--dim-text);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+        }
+
+        tr:hover {
+            background-color: rgba(48, 54, 61, 0.2);
+        }
+
+        .signal-buy {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .signal-sell {
+            color: var(--error-color);
+            font-weight: bold;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            background: #21262d;
+        }
+
+        .status-active {
+            color: var(--info-color);
+            border: 1px solid var(--info-color);
+        }
+
+        .status-win {
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+        }
+
+        .status-loss {
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+        }
+
+        .log-line {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+            font-size: 0.85rem;
+        }
+
+        .log-timestamp {
+            color: var(--dim-text);
+            margin-right: 10px;
+        }
+
+        .log-info {
+            color: var(--info-color);
+        }
+
+        .log-error {
+            color: var(--error-color);
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background-color: var(--accent-color);
+            vertical-align: middle;
+            animation: pulse 1s infinite;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(13, 17, 23, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="terminal-container">
+        <div class="terminal-header">
+            <div class="window-controls">
+                <div class="control close"></div>
+                <div class="control minimize"></div>
+                <div class="control maximize"></div>
+            </div>
+            <div class="system-title">QUANTIX AI CORE - TERMINAL v1.0.0</div>
+            <div class="system-status" id="sys-time">DATE: 2024-02-26 10:30:15</div>
+        </div>
+
+        <div class="tab-bar">
+            <div class="tab active" onclick="switchTab('dashboard')">PROMPT > ./DASHBOARD</div>
+            <div class="tab" onclick="switchTab('signals')">PROMPT > ./LOG_SIGNALS</div>
+            <div class="tab" onclick="switchTab('logs')">PROMPT > ./SYSTEM_RAW</div>
+            <div class="tab" onclick="switchTab('performance')">PROMPT > ./ANALYSIS</div>
+        </div>
+
+        <div class="content-area" id="main-content">
+            <!-- Loading -->
+            <div id="loading" class="loading-overlay">
+                <div>[ SCANNING DATABASE ... <span class="cursor"></span> ]</div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="view-dashboard">
+                <div class="grid-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">System State</div>
+                        <div class="stat-value">OPERATIONAL</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Signals</div>
+                        <div class="stat-value" id="stat-active">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Win Rate (7D)</div>
+                        <div class="stat-value" id="stat-wr">--%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Current Model</div>
+                        <div class="stat-value" style="font-size: 1rem;" id="stat-model">EMA_RSI_v1</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] RUNNING_SIGNALS</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Pair</th>
+                            <th>Type</th>
+                            <th>Entry</th>
+                            <th>TP/SL</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="active-signals-body">
+                        <!-- Data rows here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Signals History -->
+            <div id="view-signals" class="hidden">
+                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] EXECUTION_HISTORY</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>ID</th>
+                            <th>Pair</th>
+                            <th>Side</th>
+                            <th>Price</th>
+                            <th>Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-signals-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Logs View -->
+            <div id="view-logs" class="hidden">
+                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] RAW_SYSTEM_OUTPUT</h3>
+                <div id="log-container">
+                    <!-- Log lines here -->
+                </div>
+            </div>
+
+            <!-- Performance View -->
+            <div id="view-performance" class="hidden">
+                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] MODEL_CORE_ANALYSIS</h3>
+                <div id="perf-content">
+                    Updating matrix coefficients...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('sys-time').innerText = 'DATE: ' + now.toISOString().replace('T', ' ').split('.')[0];
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const views = ['dashboard', 'signals', 'logs', 'performance'];
+
+            tabs.forEach((tab, index) => {
+                if (tab.innerText.toLowerCase().includes(tabName)) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            views.forEach(view => {
+                document.getElementById('view-' + view).classList.add('hidden');
+            });
+            document.getElementById('view-' + tabName).classList.remove('hidden');
+        }
+
+        // Fetch data from Apps Script
+        function loadData() {
+            document.getElementById('loading').classList.remove('hidden');
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(function (data) {
+                        renderData(data);
+                    })
+                    .withFailureHandler(function (error) {
+                        console.error('Apps Script Error:', error);
+                        document.getElementById('loading').innerText = '[ ERROR: CONNECTION FAILED ]';
+                    })
+                    .getDashboardData();
+            } else {
+                console.warn('Google script context not found. Showing mock data for preview.');
+                // Mock data for local testing
+                setTimeout(() => {
+                    const mockData = {
+                        active: [
+                            { id: 'SIG_PREVIEW_01', pair: 'EURUSDT', direction: 'BUY', entry: 1.0852, tp: 1.0872, sl: 1.0842, state: 'WAITING_FOR_ENTRY' },
+                            { id: 'SIG_PREVIEW_02', pair: 'EURUSDT', direction: 'SELL', entry: 1.0865, tp: 1.0845, sl: 1.0875, state: 'ENTRY_HIT' }
+                        ],
+                        history: [
+                            { time: '2024-02-25 22:15', id: 'SIG_HIST_01', pair: 'EURUSDT', direction: 'BUY', price: 1.0820, outcome: 'CLOSED_WIN' },
+                            { time: '2024-02-25 18:30', id: 'SIG_HIST_02', pair: 'EURUSDT', direction: 'SELL', price: 1.0840, outcome: 'CLOSED_LOSS' }
+                        ],
+                        logs: [
+                            { time: '17:30:15', msg: 'System initialized...', type: 'info' },
+                            { time: '17:30:16', msg: 'Waiting for deployment to Google Apps Script...', type: 'warn' }
+                        ],
+                        stats: { active_count: 2, win_rate: 0, model: 'PREVIEW_MODE' }
+                    };
+                    renderData(mockData);
+                }, 800);
+            }
+        }
+
+        function renderData(data) {
+            document.getElementById('loading').classList.add('hidden');
+
+            // Stats
+            document.getElementById('stat-active').innerText = data.active.length;
+            document.getElementById('stat-wr').innerText = data.stats.win_rate + '%';
+            document.getElementById('stat-model').innerText = data.stats.model;
+
+            // Active Table
+            const activeBody = document.getElementById('active-signals-body');
+            activeBody.innerHTML = '';
+            data.active.forEach(s => {
+                const row = `<tr>
+                    <td>${s.id}</td>
+                    <td>${s.pair}</td>
+                    <td class="signal-${s.direction.toLowerCase()}">${s.direction}</td>
+                    <td>${s.entry}</td>
+                    <td><span style="color:var(--accent-color)">${s.tp}</span> / <span style="color:var(--error-color)">${s.sl}</span></td>
+                    <td><span class="badge status-active">${s.state}</span></td>
+                </tr>`;
+                activeBody.innerHTML += row;
+            });
+
+            // History Table
+            const historyBody = document.getElementById('history-signals-body');
+            historyBody.innerHTML = '';
+            data.history.forEach(h => {
+                const outcomeClass = h.outcome === 'CLOSED_WIN' ? 'status-win' : 'status-loss';
+                const row = `<tr>
+                    <td style="color:var(--dim-text)">${h.time}</td>
+                    <td>${h.id}</td>
+                    <td>${h.pair}</td>
+                    <td class="signal-${h.direction.toLowerCase()}">${h.direction}</td>
+                    <td>${h.price}</td>
+                    <td><span class="badge ${outcomeClass}">${h.outcome}</span></td>
+                </tr>`;
+                historyBody.innerHTML += row;
+            });
+
+            // Logs
+            const logContainer = document.getElementById('log-container');
+            logContainer.innerHTML = '';
+            data.logs.forEach(l => {
+                const line = `<div class="log-line">
+                    <span class="log-timestamp">[${l.time}]</span>
+                    <span class="log-${l.type}">${l.msg}</span>
+                </div>`;
+                logContainer.innerHTML += line;
+            });
+        }
+
+        window.onload = loadData;
+        // Tự động refresh mỗi 30s
+        setInterval(loadData, 30000);
+    </script>
+</body>
+
+</html>
