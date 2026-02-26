@@ -299,10 +299,10 @@
         </div>
 
         <div class="tab-bar">
-            <div class="tab active" onclick="switchTab('dashboard')">PROMPT > ./DASHBOARD</div>
-            <div class="tab" onclick="switchTab('signals')">PROMPT > ./LOG_SIGNALS</div>
-            <div class="tab" onclick="switchTab('logs')">PROMPT > ./SYSTEM_RAW</div>
-            <div class="tab" onclick="switchTab('performance')">PROMPT > ./ANALYSIS</div>
+            <div class="tab active" onclick="switchTab('dashboard', this)">PROMPT > ./DASHBOARD</div>
+            <div class="tab" onclick="switchTab('performance', this)">PROMPT > ./ANALYSIS</div>
+            <div class="tab" onclick="switchTab('signals', this)">PROMPT > ./LOG_SIGNALS</div>
+            <div class="tab" onclick="switchTab('logs', this)">PROMPT > ./SYSTEM_RAW</div>
         </div>
 
         <div class="content-area" id="main-content">
@@ -395,17 +395,21 @@
         setInterval(updateTime, 1000);
         updateTime();
 
-        function switchTab(tabName) {
+        function switchTab(tabName, element) {
             const tabs = document.querySelectorAll('.tab');
             const views = ['dashboard', 'signals', 'logs', 'performance'];
 
-            tabs.forEach((tab, index) => {
-                if (tab.innerText.toLowerCase().includes(tabName)) {
-                    tab.classList.add('active');
-                } else {
-                    tab.classList.remove('active');
-                }
-            });
+            tabs.forEach(tab => tab.classList.remove('active'));
+            if (element) {
+                element.classList.add('active');
+            } else {
+                // Fallback for initial load or programmatic calls
+                tabs.forEach(tab => {
+                    if (tab.getAttribute('onclick').includes(`'${tabName}'`)) {
+                        tab.classList.add('active');
+                    }
+                });
+            }
 
             views.forEach(view => {
                 document.getElementById('view-' + view).classList.add('hidden');
