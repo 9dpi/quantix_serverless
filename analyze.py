@@ -83,9 +83,9 @@ def main():
             sig_dt_str,
             "EURUSDT", 
             signal['direction'], 
-            signal['entry'], 
-            signal['tp'], 
-            signal['sl'], 
+            round(signal['entry'], 5), 
+            round(signal['tp'], 5), 
+            round(signal['sl'], 5), 
             "WAITING_FOR_ENTRY", 
             now
         ]
