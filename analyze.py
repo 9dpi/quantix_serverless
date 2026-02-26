@@ -6,6 +6,8 @@ from utils.binance import BinanceAPI
 from utils.sheets import GoogleSheets
 from utils.telegram import send_telegram_message
 from models.ema_rsi import EMARSIModel
+from models.test_model import TestModel
+from utils.logger import SheetLogger
 
 def main():
     load_dotenv()
@@ -44,10 +46,13 @@ def main():
     active_model_name = config.get("active_model", "EMA_RSI")
     print(f"Using model: {active_model_name}")
     
-    model = EMARSIModel(
-        ema_period=int(config.get("ema_period", 20)),
-        rsi_period=int(config.get("rsi_period", 14))
-    )
+    if active_model_name == "TEST":
+        model = TestModel()
+    else:
+        model = EMARSIModel(
+            ema_period=int(config.get("ema_period", 20)),
+            rsi_period=int(config.get("rsi_period", 14))
+        )
     
     print("Analyzing markets...")
     signal = model.analyze(df)
