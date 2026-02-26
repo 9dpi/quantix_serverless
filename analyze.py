@@ -40,16 +40,20 @@ def main():
     # 2. Lấy dữ liệu
     logger.info("Fetching data from Binance...")
     df = bn.get_history(symbol="EURUSDT", interval="15m", outputsize=100)
-    if df is None or df.empty:
-        logger.error("Failed to fetch data or data is empty.")
-        return
     
-    last_price = df.iloc[-1]['close']
-    logger.info(f"Last Price: {last_price}")
-
     # 3. Chọn model và phân tích
     active_model_name = config.get("active_model", "EMA_RSI")
     logger.info(f"Using model: {active_model_name}")
+
+    if df is None or df.empty:
+        if active_model_name == "TEST":
+            logger.info("Market data failed, but continuing with TEST mode fallback...")
+        else:
+            logger.error("Failed to fetch data or data is empty. Stopping.")
+            return
+    else:
+        last_price = df.iloc[-1]['close']
+        logger.info(f"Last Price: {last_price}")
     
     if active_model_name == "TEST":
         model = TestModel()
@@ -66,10 +70,17 @@ def main():
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         signal_id = f"SIG_{datetime.now().strftime('%y%m%d%H%M%S')}"
         
+        # Lấy datetime từ signal nếu df lỗi
+        sig_dt = signal.get('datetime')
+        if isinstance(sig_dt, datetime):
+            sig_dt_str = sig_dt.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            sig_dt_str = now
+
         # Ghi vào sheet signals
         row = [
             signal_id, 
-            df.iloc[-1]['datetime'].strftime("%Y-%m-%d %H:%M:%S"),
+            sig_dt_str,
             "EURUSDT", 
             signal['direction'], 
             signal['entry'], 
