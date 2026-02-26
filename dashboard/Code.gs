@@ -6,6 +6,14 @@
 var SPREADSHEET_ID = '1GuiICjRn7netb9fThkwiDm_6YgBbNKOYY7ck5D_yLiI';
 
 function doGet(e) {
+  // Nếu có parameter cmd=data, trả về JSON cho Dashboard ngoài (GitHub Pages)
+  if (e && e.parameter && e.parameter.cmd === 'data') {
+    var data = getDashboardData();
+    return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Mặc định trả về giao diện HTML nếu mở trực tiếp
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Quantix Terminal')

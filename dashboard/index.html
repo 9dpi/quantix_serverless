@@ -413,42 +413,36 @@
             document.getElementById('view-' + tabName).classList.remove('hidden');
         }
 
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTtfjrHsU2RINOQ-TnQW38OhVUsiyFdwRUOVhVlMZP44BV5q-xibRiCTG6zX9bSoYCwQ/exec';
+
         // Fetch data from Apps Script
-        function loadData() {
+        async function loadData() {
             document.getElementById('loading').classList.remove('hidden');
 
             if (typeof google !== 'undefined' && google.script && google.script.run) {
                 google.script.run
-                    .withSuccessHandler(function (data) {
-                        renderData(data);
-                    })
-                    .withFailureHandler(function (error) {
-                        console.error('Apps Script Error:', error);
-                        document.getElementById('loading').innerText = '[ ERROR: CONNECTION FAILED ]';
-                    })
+                    .withSuccessHandler(renderData)
+                    .withFailureHandler(handleError)
                     .getDashboardData();
             } else {
-                console.warn('Google script context not found. Showing mock data for preview.');
-                // Mock data for local testing
-                setTimeout(() => {
-                    const mockData = {
-                        active: [
-                            { id: 'SIG_PREVIEW_01', pair: 'EURUSDT', direction: 'BUY', entry: 1.0852, tp: 1.0872, sl: 1.0842, state: 'WAITING_FOR_ENTRY' },
-                            { id: 'SIG_PREVIEW_02', pair: 'EURUSDT', direction: 'SELL', entry: 1.0865, tp: 1.0845, sl: 1.0875, state: 'ENTRY_HIT' }
-                        ],
-                        history: [
-                            { time: '2024-02-25 22:15', id: 'SIG_HIST_01', pair: 'EURUSDT', direction: 'BUY', price: 1.0820, outcome: 'CLOSED_WIN' },
-                            { time: '2024-02-25 18:30', id: 'SIG_HIST_02', pair: 'EURUSDT', direction: 'SELL', price: 1.0840, outcome: 'CLOSED_LOSS' }
-                        ],
-                        logs: [
-                            { time: '17:30:15', msg: 'System initialized...', type: 'info' },
-                            { time: '17:30:16', msg: 'Waiting for deployment to Google Apps Script...', type: 'warn' }
-                        ],
-                        stats: { active_count: 2, win_rate: 0, model: 'PREVIEW_MODE' }
-                    };
-                    renderData(mockData);
-                }, 800);
+                try {
+                    const response = await fetch(WEB_APP_URL + '?cmd=data');
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const data = await response.json();
+                    renderData(data);
+                } catch (error) {
+                    handleError(error);
+                }
             }
+        }
+
+        function handleError(error) {
+            console.error('Data Fetch Error:', error);
+            document.getElementById('loading').innerHTML = `
+                <div style="color:var(--error-color)">
+                    [ ERROR: CONNECTION FAILED ]<br>
+                    <span style="font-size:0.75rem; color:var(--dim-text)">${error.message || 'Check CORS or Deployment URL'}</span>
+                </div>`;
         }
 
         function renderData(data) {
