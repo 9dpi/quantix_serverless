@@ -4,64 +4,62 @@ import time
 
 class BinanceAPI:
     def __init__(self):
-        self.base_url = "https://api.binance.com/api/v3"
+        # Danh sách các domain dự phòng để tránh bị chặn địa lý (Error 451)
+        self.base_urls = [
+            "https://api.binance.com/api/v3",
+            "https://api1.binance.com/api/v3",
+            "https://api-gcp.binance.com/api/v3",
+            "https://api.binance.us/api/v3"
+        ]
 
     def get_history(self, symbol="EURUSDT", interval="15m", outputsize=100):
-        """
-        Lấy dữ liệu nến (Kline/Candlestick) từ Binance.
-        Lưu ý: Binance sử dụng ký hiệu EURUSDT thay vì EUR/USD.
-        """
-        # Binance interval: 1m, 3m, 5m, 15m, 30m, 1h, ...
-        # Nếu truyền 15min thì chuyển thành 15m
         binance_interval = interval.replace("min", "m")
-        
-        url = f"{self.base_url}/klines"
         params = {
-            "symbol": symbol.replace("/", ""), # EUR/USD -> EURUSD
+            "symbol": symbol.replace("/", ""),
             "interval": binance_interval,
             "limit": outputsize
         }
         
-        try:
-            response = requests.get(url, params=params)
-            data = response.json()
-            
-            if response.status_code != 200:
-                print(f"Error Binance API: {data}")
-                return None
-            
-            # Binance trả về list các list: [Open time, Open, High, Low, Close, Volume, Close time, ...]
-            df = pd.DataFrame(data, columns=[
-                'datetime', 'open', 'high', 'low', 'close', 'volume',
-                'close_time', 'quote_asset_volume', 'number_of_trades',
-                'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
-            ])
-            
-            # Chuyển đổi kiểu dữ liệu
-            df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
-            for col in ['open', 'high', 'low', 'close']:
-                df[col] = df[col].astype(float)
-            
-            return df[['datetime', 'open', 'high', 'low', 'close']]
-            
-        except Exception as e:
-            print(f"Exception fetching Binance data: {e}")
-            return None
+        last_error = ""
+        for base_url in self.base_urls:
+            try:
+                url = f"{base_url}/klines"
+                response = requests.get(url, params=params, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Chuyển đổi sang DataFrame
+                    df = pd.DataFrame(data, columns=[
+                        'datetime', 'open', 'high', 'low', 'close', 'volume',
+                        'close_time', 'quote_asset_volume', 'number_of_trades',
+                        'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+                    ])
+                    
+                    # Chuyển đổi kiểu dữ liệu
+                    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+                    for col in ['open', 'high', 'low', 'close']:
+                        df[col] = df[col].astype(float)
+                    
+                    return df[['datetime', 'open', 'high', 'low', 'close']]
+                else:
+                    last_error = f"Status {response.status_code} from {base_url}"
+            except Exception as e:
+                last_error = str(e)
+                continue
+        
+        print(f"Failed to fetch Binance data from all endpoints. Last error: {last_error}")
+        return None
 
     def get_realtime_price(self, symbol="EURUSDT"):
-        """Lấy giá hiện tại (ticker price) từ Binance."""
-        url = f"{self.base_url}/ticker/price"
         params = {"symbol": symbol.replace("/", "")}
         
-        try:
-            response = requests.get(url, params=params)
-            data = response.json()
-            
-            if response.status_code != 200:
-                print(f"Error Binance Price API: {data}")
-                return None
-                
-            return float(data["price"])
-        except Exception as e:
-            print(f"Exception fetching Binance price: {e}")
-            return None
+        for base_url in self.base_urls:
+            try:
+                url = f"{base_url}/ticker/price"
+                response = requests.get(url, params=params, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    return float(data["price"])
+            except:
+                continue
+        return None
