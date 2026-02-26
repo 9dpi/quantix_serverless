@@ -27,22 +27,29 @@ def main():
     # 1. Đọc cấu hình từ sheet
     try:
         config = gs.get_config()
+        print(f"Config loaded: {config}")
     except Exception as e:
         print(f"Error reading config: {e}")
         return
 
     # 2. Lấy dữ liệu
-    # Binance dùng EURUSDT cho cặp tiền này
+    print("Fetching data from Binance...")
     df = bn.get_history(symbol="EURUSDT", interval="15m", outputsize=100)
-    if df is None:
+    if df is None or df.empty:
+        print("Failed to fetch data or data is empty.")
         return
+    print(f"Last close: {df.iloc[-1]['close']} at {df.iloc[-1]['datetime']}")
 
     # 3. Chọn model và phân tích
+    active_model_name = config.get("active_model", "EMA_RSI")
+    print(f"Using model: {active_model_name}")
+    
     model = EMARSIModel(
         ema_period=int(config.get("ema_period", 20)),
         rsi_period=int(config.get("rsi_period", 14))
     )
     
+    print("Analyzing markets...")
     signal = model.analyze(df)
     
     # 4. Xử lý tín hiệu
