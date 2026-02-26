@@ -267,17 +267,40 @@
             animation: pulse 1s infinite;
         }
 
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(13, 17, 23, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
+        .loading-dots {
+            font-size: 0.75rem;
+            color: var(--accent-color);
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .loading-dots::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+            display: inline-block;
+            width: 1.5em;
+            vertical-align: bottom;
+        }
+
+        @keyframes dots {
+
+            0%,
+            20% {
+                content: '';
+            }
+
+            40% {
+                content: '.';
+            }
+
+            60% {
+                content: '..';
+            }
+
+            80%,
+            100% {
+                content: '...';
+            }
         }
 
         .hidden {
@@ -294,7 +317,10 @@
                 <div class="control minimize"></div>
                 <div class="control maximize"></div>
             </div>
-            <div class="system-title">QUANTIX AI CORE - TERMINAL v1.0.0</div>
+            <div class="system-title">
+                QUANTIX AI CORE - TERMINAL v1.0.0
+                <span id="loading-status" class="loading-dots hidden">SCANNING</span>
+            </div>
             <div class="system-status" id="sys-time">DATE: 2024-02-26 10:30:15</div>
         </div>
 
@@ -306,11 +332,6 @@
         </div>
 
         <div class="content-area" id="main-content">
-            <!-- Loading -->
-            <div id="loading" class="loading-overlay">
-                <div>[ SCANNING DATABASE ... <span class="cursor"></span> ]</div>
-            </div>
-
             <!-- Dashboard View -->
             <div id="view-dashboard">
                 <div class="grid-stats">
@@ -421,7 +442,7 @@
 
         // Fetch data from Apps Script
         async function loadData() {
-            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loading-status').classList.remove('hidden');
 
             if (typeof google !== 'undefined' && google.script && google.script.run) {
                 google.script.run
@@ -442,15 +463,13 @@
 
         function handleError(error) {
             console.error('Data Fetch Error:', error);
-            document.getElementById('loading').innerHTML = `
-                <div style="color:var(--error-color)">
-                    [ ERROR: CONNECTION FAILED ]<br>
-                    <span style="font-size:0.75rem; color:var(--dim-text)">${error.message || 'Check CORS or Deployment URL'}</span>
-                </div>`;
+            document.getElementById('loading-status').innerText = '[ CONNECTION ERROR ]';
+            document.getElementById('loading-status').style.color = 'var(--error-color)';
+            document.getElementById('loading-status').classList.remove('hidden');
         }
 
         function renderData(data) {
-            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('loading-status').classList.add('hidden');
 
             // Stats
             document.getElementById('stat-active').innerText = data.active.length;
@@ -462,13 +481,13 @@
             activeBody.innerHTML = '';
             data.active.forEach(s => {
                 const row = `<tr>
-                    <td>${s.id}</td>
-                    <td>${s.pair}</td>
-                    <td class="signal-${s.direction.toLowerCase()}">${s.direction}</td>
-                    <td>${s.entry}</td>
-                    <td><span style="color:var(--accent-color)">${s.tp}</span> / <span style="color:var(--error-color)">${s.sl}</span></td>
-                    <td><span class="badge status-active">${s.state}</span></td>
-                </tr>`;
+                <td>${s.id}</td>
+                <td>${s.pair}</td>
+                <td class="signal-${s.direction.toLowerCase()}">${s.direction}</td>
+                <td>${s.entry}</td>
+                <td><span style="color:var(--accent-color)">${s.tp}</span> / <span style="color:var(--error-color)">${s.sl}</span></td>
+                <td><span class="badge status-active">${s.state}</span></td>
+            </tr>`;
                 activeBody.innerHTML += row;
             });
 
@@ -478,13 +497,13 @@
             data.history.forEach(h => {
                 const outcomeClass = h.outcome === 'CLOSED_WIN' ? 'status-win' : 'status-loss';
                 const row = `<tr>
-                    <td style="color:var(--dim-text)">${h.time}</td>
-                    <td>${h.id}</td>
-                    <td>${h.pair}</td>
-                    <td class="signal-${h.direction.toLowerCase()}">${h.direction}</td>
-                    <td>${h.price}</td>
-                    <td><span class="badge ${outcomeClass}">${h.outcome}</span></td>
-                </tr>`;
+                <td style="color:var(--dim-text)">${h.time}</td>
+                <td>${h.id}</td>
+                <td>${h.pair}</td>
+                <td class="signal-${h.direction.toLowerCase()}">${h.direction}</td>
+                <td>${h.price}</td>
+                <td><span class="badge ${outcomeClass}">${h.outcome}</span></td>
+            </tr>`;
                 historyBody.innerHTML += row;
             });
 
@@ -493,9 +512,9 @@
             logContainer.innerHTML = '';
             data.logs.forEach(l => {
                 const line = `<div class="log-line">
-                    <span class="log-timestamp">[${l.time}]</span>
-                    <span class="log-${l.type}">${l.msg}</span>
-                </div>`;
+                <span class="log-timestamp">[${l.time}]</span>
+                <span class="log-${l.type}">${l.msg}</span>
+            </div>`;
                 logContainer.innerHTML += line;
             });
         }
