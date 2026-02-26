@@ -536,7 +536,8 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>Timestamp</th>
+                                <th>Open</th>
+                                <th>Close</th>
                                 <th>ID</th>
                                 <th>Pair</th>
                                 <th>Side</th>
@@ -649,7 +650,8 @@
             data.history.forEach(h => {
                 const outcomeClass = h.outcome === 'CLOSED_WIN' ? 'status-win' : 'status-loss';
                 const row = `<tr>
-                <td data-label="TIME" style="color:var(--dim-text)">${h.time}</td>
+                <td data-label="OPEN" style="color:var(--dim-text)">${h.time}</td>
+                <td data-label="CLOSE" style="color:var(--accent-color)">${h.closeTime}</td>
                 <td data-label="ID">${h.id}</td>
                 <td data-label="PAIR">${h.pair}</td>
                 <td data-label="SIDE" class="signal-${h.direction.toLowerCase()}">${h.direction}</td>
