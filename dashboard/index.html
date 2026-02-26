@@ -329,6 +329,14 @@
 
             body {
                 padding: 10px;
+                height: auto;
+                overflow: auto;
+                min-height: 100vh;
+            }
+
+            .terminal-container {
+                height: auto;
+                min-height: calc(100vh - 20px);
             }
 
             .terminal-header {
@@ -441,6 +449,7 @@
 
             .content-area {
                 padding: 15px;
+                overflow-y: visible;
             }
         }
     </style>
