@@ -309,6 +309,54 @@
             display: none;
         }
 
+        /* --- SECURITY LAYER --- */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .auth-box {
+            border: 1px solid var(--accent-color);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .auth-input {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--accent-color);
+            color: var(--accent-color);
+            font-family: inherit;
+            font-size: 1.5rem;
+            width: 150px;
+            text-align: center;
+            margin: 20px 0;
+            outline: none;
+        }
+
+        .auth-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
         .mobile-only {
             display: none;
         }
@@ -456,6 +504,19 @@
 </head>
 
 <body>
+    <!-- Auth Gate -->
+    <div id="auth-gate" class="auth-overlay hidden">
+        <div class="auth-box">
+            <h2 style="color: var(--accent-color);">[ TERMINAL LOCKED ]</h2>
+            <p style="margin-top: 10px; color: var(--dim-text); font-size: 0.8rem;">ENTER SYSTEM ACCESS KEY</p>
+            <input type="password" id="sys-key-input" class="auth-input" maxlength="4" placeholder="****">
+            <br>
+            <button onclick="checkAuth()" class="auth-btn">AUTHORIZE</button>
+            <p id="auth-error" style="color: var(--error-color); margin-top: 15px; font-size: 0.8rem;" class="hidden">
+                INVALID ACCESS KEY</p>
+        </div>
+    </div>
+
     <div class="terminal-container">
         <div class="terminal-header">
             <div class="window-controls">
@@ -601,25 +662,43 @@
         }
 
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyDKSx6ZEGjvj8-M-A3C4Efc-RU6vbGNfoVSNdXfD0uGLMJxk8Naoof4brIPaJVhMfjMA/exec';
+        let SYSTEM_KEY = localStorage.getItem('quantix_sys_key') || '';
 
-        // Fetch data from Apps Script
+        function checkAuth() {
+            const input = document.getElementById('sys-key-input').value;
+            if (input) {
+                SYSTEM_KEY = input;
+                loadData();
+            }
+        }
+
         async function loadData() {
+            if (!SYSTEM_KEY) {
+                document.getElementById('auth-gate').classList.remove('hidden');
+                return;
+            }
+
             document.getElementById('loading-status').classList.remove('hidden');
 
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run
-                    .withSuccessHandler(renderData)
-                    .withFailureHandler(handleError)
-                    .getDashboardData();
-            } else {
-                try {
-                    const response = await fetch(WEB_APP_URL + '?cmd=data');
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    const data = await response.json();
-                    renderData(data);
-                } catch (error) {
-                    handleError(error);
+            try {
+                const response = await fetch(`${WEB_APP_URL}?cmd=data&key=${SYSTEM_KEY}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+
+                if (data.error === 'Unauthorized') {
+                    localStorage.removeItem('quantix_sys_key');
+                    SYSTEM_KEY = '';
+                    document.getElementById('auth-gate').classList.remove('hidden');
+                    document.getElementById('auth-error').classList.remove('hidden');
+                    return;
                 }
+
+                localStorage.setItem('quantix_sys_key', SYSTEM_KEY);
+                document.getElementById('auth-gate').classList.add('hidden');
+                document.getElementById('auth-error').classList.add('hidden');
+                renderData(data);
+            } catch (error) {
+                handleError(error);
             }
         }
 

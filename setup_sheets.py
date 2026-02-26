@@ -19,7 +19,7 @@ def setup_sheets():
     # Format: { sheet_name: [columns] }
     structure = {
         "config": ["key", "value", "description"],
-        "signals": ["ID", "Timestamp", "Pair", "Direction", "Entry", "TP", "SL", "State", "CreatedAt", "UpdatedAt", "EntryTime", "CloseTime", "Notes"],
+        "signals": ["ID", "Timestamp", "Pair", "Direction", "Entry", "TP", "SL", "State", "CreatedAt", "UpdatedAt", "EntryTime", "CloseTime", "Notes", "Outcome"],
         "model_results": ["ID", "Timestamp", "ModelName", "Direction", "Entry", "TP", "SL", "Confidence", "Params", "State", "ClosedAt", "Outcome", "Notes"],
         "logs": ["Timestamp", "Message"]
     }

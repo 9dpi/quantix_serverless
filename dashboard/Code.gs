@@ -6,8 +6,13 @@
 var SPREADSHEET_ID = '1GuiICjRn7netb9fThkwiDm_6YgBbNKOYY7ck5D_yLiI';
 
 function doGet(e) {
-  // Nếu có parameter cmd=data, trả về JSON cho Dashboard ngoài (GitHub Pages)
+  var ACCESS_KEY = '8888'; // Bạn có thể đổi mã này
+  
   if (e && e.parameter && e.parameter.cmd === 'data') {
+    if (e.parameter.key !== ACCESS_KEY) {
+      return ContentService.createTextOutput(JSON.stringify({error: 'Unauthorized'}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     var data = getDashboardData();
     return ContentService.createTextOutput(JSON.stringify(data))
       .setMimeType(ContentService.MimeType.JSON);
@@ -65,6 +70,7 @@ function getSignalHistory(ss) {
     if (state.includes('CLOSED') || state === 'EXPIRED') {
       history.push({
         time: Utilities.formatDate(new Date(data[i][1]), "GMT+7", "yyyy-MM-dd HH:mm"),
+        closeTime: data[i][11] ? Utilities.formatDate(new Date(data[i][11]), "GMT+7", "HH:mm") : '---',
         id: data[i][0],
         pair: data[i][2],
         direction: data[i][3],

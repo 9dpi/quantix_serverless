@@ -70,10 +70,12 @@ function checkExit(sheet, rowIdx, rowData, currentPrice, now) {
   if (closed) {
     sheet.getRange(rowIdx, 8).setValue(outcome);
     sheet.getRange(rowIdx, 12).setValue(now); // Cột CloseTime
+    sheet.getRange(rowIdx, 14).setValue(outcome === 'CLOSED_WIN' ? 'win' : 'loss'); // Cột Outcome
+    
     var emoji = outcome === 'CLOSED_WIN' ? '💰' : '❌';
     sendTelegram(emoji + ' *Signal Closed: ' + rowData[0] + '*\nKết quả: ' + outcome + '\nGiá đóng: ' + currentPrice);
     
-    // Đồng bộ sang sheet model_results
+    // Đồng đồng bộ sang sheet model_results
     syncToModelResults(rowData[0], outcome, now);
   }
 }
@@ -94,14 +96,44 @@ function syncToModelResults(id, outcome, closeTime) {
 }
 
 function getBinancePrice() {
-  try {
-    var response = UrlFetchApp.fetch(BINANCE_API_URL);
-    var json = JSON.parse(response.getContentText());
-    return parseFloat(json.price);
-  } catch (e) {
-    console.error('Lỗi lấy giá Binance: ' + e);
-    return null;
+  var symbol = 'EURUSDT';
+  var urls = [
+    'https://api.binance.com/api/v3/ticker/price?symbol=' + symbol,
+    'https://api1.binance.com/api/v3/ticker/price?symbol=' + symbol,
+    'https://api2.binance.com/api/v3/ticker/price?symbol=' + symbol,
+    'https://api3.binance.com/api/v3/ticker/price?symbol=' + symbol,
+    'https://api-gcp.binance.com/api/v3/ticker/price?symbol=' + symbol,
+    'https://api.binance.us/api/v3/ticker/price?symbol=' + symbol
+  ];
+  
+  // 1. Thử lấy từ Binance
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      var response = UrlFetchApp.fetch(urls[i], { 'muteHttpExceptions': true });
+      if (response.getResponseCode() == 200) {
+        var json = JSON.parse(response.getContentText());
+        return parseFloat(json.price);
+      }
+    } catch (e) {
+      console.warn('Binance ' + urls[i] + ' failed: ' + e);
+    }
   }
+  
+  // 2. Dự phòng: Lấy từ Yahoo Finance nếu Binance chặn toàn bộ Google Apps Script
+  try {
+    var yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1m&range=1d';
+    var response = UrlFetchApp.fetch(yahooUrl, { 'muteHttpExceptions': true });
+    if (response.getResponseCode() == 200) {
+      var data = JSON.parse(response.getContentText());
+      var meta = data.chart.result[0].meta;
+      console.info('Yahoo Finance fallback triggered. Price: ' + meta.regularMarketPrice);
+      return parseFloat(meta.regularMarketPrice);
+    }
+  } catch (e) {
+    console.error('Yahoo Finance fallback also failed: ' + e);
+  }
+  
+  return null;
 }
 
 function sendTelegram(text) {

@@ -1,6 +1,11 @@
 *.json
 .env
+secret.txt
+credentials.py
 __pycache__/
 *.pyc
 .vscode/
 .idea/
+node_modules/
+dist/
+build/
