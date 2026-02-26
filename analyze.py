@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from dotenv import load_dotenv
 from utils.binance import BinanceAPI
+from utils.yahoo_finance import YahooFinanceAPI
 from utils.sheets import GoogleSheets
 from utils.telegram import send_telegram_message
 from models.ema_rsi import EMARSIModel
@@ -24,6 +25,7 @@ def main():
 
     # Khởi tạo các module
     bn = BinanceAPI()
+    yf_api = YahooFinanceAPI()
     gs = GoogleSheets(GOOGLE_CREDS, SHEET_ID)
     logger = SheetLogger(gs)
     
@@ -38,9 +40,14 @@ def main():
         return
 
     # 2. Lấy dữ liệu
-    logger.info("Fetching data from Binance...")
+    logger.info("Fetching data (Binance Primary)...")
     df = bn.get_history(symbol="EURUSDT", interval="15m", outputsize=100)
     
+    if df is None or df.empty:
+        logger.info("Binance blocked (451). Trying Yahoo Finance (Secondary)...")
+        # Yahoo sử dụng EURUSD=X cho EUR/USD. 
+        df = yf_api.get_history(symbol="EURUSD=X", interval="15m", outputsize=100)
+
     # 3. Chọn model và phân tích
     active_model_name = config.get("active_model", "EMA_RSI")
     logger.info(f"Using model: {active_model_name}")
@@ -49,11 +56,11 @@ def main():
         if active_model_name == "TEST":
             logger.info("Market data failed, but continuing with TEST mode fallback...")
         else:
-            logger.error("Failed to fetch data or data is empty. Stopping.")
+            logger.error("Failed to fetch data from all sources. Stopping.")
             return
     else:
         last_price = df.iloc[-1]['close']
-        logger.info(f"Last Price: {last_price}")
+        logger.info(f"Market Data OK. Last Price: {last_price}")
     
     if active_model_name == "TEST":
         model = TestModel()
@@ -92,8 +99,30 @@ def main():
         gs.append_row("signals", row)
         logger.info(f"Signal generated: {signal['direction']} at {signal['entry']}")
         
-        # ... (rest of signal recording)
-        send_telegram_message(TELE_TOKEN, TELE_CHAT_ID, f"🚀 Signal: {signal['direction']} @ {signal['entry']}")
+        # Ghi vào sheet model_results
+        # ID, Timestamp, ModelName, Direction, Entry, TP, SL, Confidence, Params, State
+        res_row = [
+            signal_id,
+            sig_dt_str,
+            active_model_name,
+            signal['direction'],
+            signal['entry'],
+            signal['tp'],
+            signal['sl'],
+            signal['confidence'],
+            json.dumps(model.get_params()),
+            "OPEN"
+        ]
+        gs.append_row("model_results", res_row)
+        
+        # Gửi Telegram
+        msg = f"🚀 *Tín hiệu mới: {signal['direction']} EUR/USD*\n" \
+              f"Entry: {signal['entry']}\n" \
+              f"TP: {signal['tp']}\n" \
+              f"SL: {signal['sl']}\n" \
+              f"Model: {active_model_name}"
+        send_telegram_message(TELE_TOKEN, TELE_CHAT_ID, msg)
+        print(f"Signal generated: {signal['direction']}")
     else:
         logger.info("No signal detected for current market conditions.")
 
