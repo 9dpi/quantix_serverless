@@ -8,6 +8,7 @@ from utils.sheets import GoogleSheets
 from utils.telegram import send_telegram_message
 from models.ema_rsi import EMARSIModel
 from models.test_model import TestModel
+from models.gemini_analyst import GeminiAnalyst
 from utils.logger import SheetLogger
 
 def main():
@@ -18,6 +19,7 @@ def main():
     SHEET_ID = os.getenv("SHEET_ID")
     TELE_TOKEN = os.getenv("TELE_TOKEN")
     TELE_CHAT_ID = os.getenv("TELE_CHAT_ID")
+    GEMINI_KEY = os.getenv("GEMINI_KEY")
 
     if not GOOGLE_CREDS or not SHEET_ID:
         print("Missing Google Sheets configuration.")
@@ -94,6 +96,23 @@ def main():
     
     signal = model.analyze(df)
     
+    # 3.5 AI Validation (Vòng xác nhận từ Gemini)
+    ai_note = "Technical analysis confirmed."
+    if signal and GEMINI_KEY:
+        ga = GeminiAnalyst(GEMINI_KEY)
+        is_confirmed, ai_note = ga.confirm_signal(signal, df)
+        if not is_confirmed:
+            logger.info(f"AI Filter: Signal {signal['direction']} REJECTED. Reason: {ai_note}")
+            # Vẫn lưu vào model_results nhưng trạng thái REJECTED để học hỏi
+            signal_id = f"REJ_{datetime.now().strftime('%y%m%d%H%M%S')}"
+            res_row = [
+                signal_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                active_model_name, signal['direction'], signal['entry'],
+                signal['tp'], signal['sl'], 0.1, 
+                json.dumps(model.get_params()), "REJECTED", "", "", ai_note
+            ]
+            gs.append_row("model_results", res_row)
+            signal = None # Hủy tín hiệu, không gửi Telegram
     # 4. Xử lý tín hiệu
     if signal:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -133,7 +152,10 @@ def main():
             signal['sl'],
             signal['confidence'],
             json.dumps(model.get_params()),
-            "OPEN"
+            "OPEN",
+            "",
+            "",
+            ai_note
         ]
         gs.append_row("model_results", res_row)
         
@@ -142,7 +164,8 @@ def main():
               f"Entry: {signal['entry']}\n" \
               f"TP: {signal['tp']}\n" \
               f"SL: {signal['sl']}\n" \
-              f"Model: {active_model_name}"
+              f"Model: {active_model_name}\n" \
+              f"AI Confirm: {ai_note}"
         send_telegram_message(TELE_TOKEN, TELE_CHAT_ID, msg)
         print(f"Signal generated: {signal['direction']}")
     else:
