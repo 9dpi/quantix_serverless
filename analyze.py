@@ -61,6 +61,24 @@ def main():
     else:
         last_price = df.iloc[-1]['close']
         logger.info(f"Market Data OK. Last Price: {last_price}")
+        
+        # 2.5 Lưu dữ liệu market để backtest/self-learning (Yahoo Finance rất ổn định)
+        try:
+            market_data_rows = []
+            # Lưu 5 nến gần nhất để đảm bảo tính liên tục
+            for i in range(max(0, len(df)-5), len(df)):
+                row_data = df.iloc[i]
+                ts = row_data.name.strftime("%Y-%m-%d %H:%M:%S") if hasattr(row_data.name, 'strftime') else str(row_data.name)
+                market_data_rows.append([
+                    ts, "EURUSD", 
+                    float(row_data['open']), float(row_data['high']), 
+                    float(row_data['low']), float(row_data['close']), 
+                    float(row_data.get('volume', 0))
+                ])
+            gs.append_rows("market_data", market_data_rows)
+            logger.info(f"Saved {len(market_data_rows)} bars to market_data sheet.")
+        except Exception as e:
+            logger.error(f"Error saving market data: {e}")
     
     if active_model_name == "TEST":
         model = TestModel()

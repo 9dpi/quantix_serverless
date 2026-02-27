@@ -25,9 +25,11 @@ class EMARSIModel(TradingModel):
         last_row = df.iloc[-1]
         prev_row = df.iloc[-2]
 
+        print(f"DEBUG: Price: {last_row['close']}, EMA: {last_row['ema']:.5f}, RSI: {last_row['rsi']:.2f}")
+
         # Chiến thuật đơn giản: Giá cắt EMA và RSI quá mua/quá bán
-        # BUY: Giá từ dưới cắt lên EMA và RSI < 30 (hoặc bật lên từ 30)
-        if prev_row['close'] < prev_row['ema'] and last_row['close'] > last_row['ema'] and last_row['rsi'] < 40:
+        # BUY: Giá từ dưới cắt lên EMA và RSI < 50 (Thoáng hơn để test)
+        if prev_row['close'] < prev_row['ema'] and last_row['close'] > last_row['ema'] and last_row['rsi'] < 50:
             return {
                 'direction': 'BUY',
                 'entry': last_row['close'],
@@ -36,8 +38,8 @@ class EMARSIModel(TradingModel):
                 'confidence': 0.7
             }
         
-        # SELL: Giá từ trên cắt xuống EMA và RSI > 70
-        if prev_row['close'] > prev_row['ema'] and last_row['close'] < last_row['ema'] and last_row['rsi'] > 60:
+        # SELL: Giá từ trên cắt xuống EMA và RSI > 50
+        if prev_row['close'] > prev_row['ema'] and last_row['close'] < last_row['ema'] and last_row['rsi'] > 50:
             return {
                 'direction': 'SELL',
                 'entry': last_row['close'],

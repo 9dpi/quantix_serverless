@@ -18,6 +18,10 @@ class GoogleSheets:
         worksheet = self.sheet.worksheet(sheet_name)
         worksheet.append_row(row)
 
+    def append_rows(self, sheet_name, rows):
+        worksheet = self.sheet.worksheet(sheet_name)
+        worksheet.append_rows(rows)
+
     def update_cell(self, sheet_name, row, col, val):
         worksheet = self.sheet.worksheet(sheet_name)
         worksheet.update_cell(row, col, val)
