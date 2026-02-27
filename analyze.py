@@ -68,7 +68,11 @@ def main():
             # Lưu 5 nến gần nhất để đảm bảo tính liên tục
             for i in range(max(0, len(df)-5), len(df)):
                 row_data = df.iloc[i]
-                ts = row_data.name.strftime("%Y-%m-%d %H:%M:%S") if hasattr(row_data.name, 'strftime') else str(row_data.name)
+                
+                # Ưu tiên lấy từ column 'datetime' (Yahoo thường có column này sau khi reset_index)
+                dt_obj = row_data.get('datetime', row_data.name)
+                ts = dt_obj.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dt_obj, 'strftime') else str(dt_obj)
+                
                 market_data_rows.append([
                     ts, "EURUSD", 
                     float(row_data['open']), float(row_data['high']), 

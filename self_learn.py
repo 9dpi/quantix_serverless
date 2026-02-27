@@ -1,107 +1,80 @@
 import os
 import json
 import pandas as pd
-from datetime import datetime
 from dotenv import load_dotenv
 from utils.sheets import GoogleSheets
-from utils.telegram import send_telegram_message
+from utils.backtest_engine import BacktestEngine
+from models.ema_rsi import EMARSIModel
+from datetime import datetime
 
-def main():
+def self_learning():
     load_dotenv()
-    
     GOOGLE_CREDS = os.getenv("GOOGLE_CREDS")
     SHEET_ID = os.getenv("SHEET_ID")
-    TELE_TOKEN = os.getenv("TELE_TOKEN")
-    TELE_CHAT_ID = os.getenv("TELE_CHAT_ID")
-
+    
     if not GOOGLE_CREDS or not SHEET_ID:
-        print("Missing configuration.")
+        print("Missing credentials.")
         return
 
     gs = GoogleSheets(GOOGLE_CREDS, SHEET_ID)
     
-    # 1. Đọc dữ liệu từ model_results
-    try:
-        results = gs.get_sheet_data("model_results")
-        if not results:
-            print("No results to learn from.")
-            return
-    except Exception as e:
-        print(f"Error reading model_results: {e}")
+    # 1. Lấy dữ liệu market đã tích lũy
+    print("Fetching market data for learning...")
+    market_data = gs.get_sheet_data("market_data")
+    if not market_data or len(market_data) < 50:
+        print("Not enough market data to learn (need at least 50 bars).")
         return
-
-    df = pd.DataFrame(results)
-    
-    # 2. Lọc các tín hiệu đã đóng (CLOSED_WIN, CLOSED_LOSS)
-    # Giả sử Apps Script cập nhật Outcome là 'win' hoặc 'loss'
-    if 'Outcome' not in df.columns or df.empty:
-        # Nếu chưa có cột Outcome, thử dùng State
-        if 'State' in df.columns:
-            closed_df = df[df['State'].isin(['CLOSED_WIN', 'CLOSED_LOSS', 'CLOSED'])]
-        else:
-            print("Required columns missing in model_results.")
-            return
-    else:
-        closed_df = df[df['Outcome'].notna() & (df['Outcome'] != "")]
-
-    if closed_df.empty:
-        print("No closed signals found for learning.")
-        return
-
-    # 3. Nhóm theo ModelName và Params để tính hiệu suất
-    # Chuyển Params (JSON string) thành tuple để có thể nhóm
-    closed_df['params_tuple'] = closed_df['Params'].apply(lambda x: tuple(sorted(json.loads(x).items())) if isinstance(x, str) else None)
-    
-    summary = []
-    for (model_name, params_tuple), group in closed_df.groupby(['ModelName', 'params_tuple']):
-        total = len(group)
-        # Tính toán Outcome (giả định cột Outcome chứa 'win' hoặc 'loss')
-        wins = len(group[group['Outcome'].str.lower() == 'win']) if 'Outcome' in group.columns else 0
-        win_rate = (wins / total) * 100 if total > 0 else 0
         
-        summary.append({
-            'ModelName': model_name,
-            'Params': dict(params_tuple),
-            'TotalSamples': total,
-            'WinRate': win_rate
-        })
-
-    # 4. Chọn Model + Params tốt nhất (ví dụ: WR cao nhất và có ít nhất 5 mẫu)
-    best_model = None
-    min_samples = 5
-    eligible_models = [s for s in summary if s['TotalSamples'] >= min_samples]
+    df = pd.DataFrame(market_data)
+    engine = BacktestEngine(df)
     
-    if eligible_models:
-        best_model = max(eligible_models, key=lambda x: x['WinRate'])
-    else:
-        # Nếu không đủ mẫu, chọn cái có WR cao nhất bất kể số lượng (hoặc giữ nguyên)
-        if summary:
-            best_model = max(summary, key=lambda x: x['WinRate'])
-
-    # 5. Cập nhật vào sheet config
-    if best_model:
-        print(f"Best model found: {best_model['ModelName']} with {best_model['WinRate']}% Win Rate")
+    # 2. Định nghĩa không gian tìm kiếm tham số (Search Space)
+    # Chúng ta sẽ thử nghiệm các tổ hợp EMA và RSI khác nhau
+    ema_options = [10, 20, 30, 40]
+    rsi_options = [7, 10, 14, 21]
+    
+    best_score = -999
+    best_params = None
+    best_stats = None
+    
+    print(f"Starting Grid Search over {len(ema_options) * len(rsi_options)} combinations...")
+    
+    for ema in ema_options:
+        for rsi in rsi_options:
+            params = {'ema_period': ema, 'rsi_period': rsi}
+            results = engine.run(EMARSIModel, params)
+            stats = engine.analyze_results(results)
+            
+            # Tiêu chí: Win rate tốt + có đủ số lượng lệnh tối thiểu
+            if stats['total'] >= 2: # Có ít nhất 2 lệnh trong quá khứ để coi là có ý nghĩa
+                score = stats['profit_score']
+                
+                if score > best_score:
+                    best_score = score
+                    best_params = params
+                    best_stats = stats
+    
+    # 3. Cập nhật tham số tốt nhất vào Config
+    if best_params:
+        print(f"✅ Best Model Found: EMA={best_params['ema_period']}, RSI={best_params['rsi_period']}")
+        print(f"Stats: Win Rate {best_stats['win_rate']}%, Total Trades: {best_stats['total']}")
         
-        # Cập nhật từng tham số vào config
-        # Giả sử sheet config có cột 'key' và 'value'
-        try:
-            # Cập nhật active_model
-            # Lưu ý: Hàm update_cell cần biết vị trí dòng. 
-            # Để đơn giản, ta sẽ viết một hàm phụ trong GoogleSheets hoặc tìm dòng ở đây.
-            # Ở đây ta giả định một cấu trúc update đơn giản.
-            
-            # Thông báo qua Telegram
-            msg = f"🧠 *Self-Learning Update*\n" \
-                  f"Model tốt nhất: {best_model['ModelName']}\n" \
-                  f"Win Rate: {best_model['WinRate']:.2f}%\n" \
-                  f"Mẫu thử: {best_model['TotalSamples']}\n" \
-                  f"Tham số mới đã được áp dụng."
-            send_telegram_message(TELE_TOKEN, TELE_CHAT_ID, msg)
-            
-        except Exception as e:
-            print(f"Error updating config: {e}")
+        # Cập nhật vào Sheet Config
+        # Tìm dòng của ema_period và rsi_period
+        config_data = gs.sheet.worksheet("config").get_all_records()
+        
+        for i, row in enumerate(config_data):
+            row_idx = i + 2 # Header is row 1
+            if row['key'] == 'ema_period':
+                gs.update_cell("config", row_idx, 2, best_params['ema_period'])
+            if row['key'] == 'rsi_period':
+                gs.update_cell("config", row_idx, 2, best_params['rsi_period'])
+        
+        # Log lại kết quả học tập
+        log_msg = f"SELF-LEARNING COMPLETED: Optimized EMA={best_params['ema_period']}, RSI={best_params['rsi_period']}. WR: {best_stats['win_rate']}%"
+        gs.append_row("logs", [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), log_msg])
     else:
-        print("Could not determine a better model.")
+        print("No better parameters found or not enough signals in history.")
 
 if __name__ == "__main__":
-    main()
+    self_learning()
