@@ -29,10 +29,25 @@ def self_learning():
     engine = BacktestEngine(df)
     
     # 2. Định nghĩa không gian tìm kiếm tham số (Search Space)
-    # Chúng ta sẽ thử nghiệm các tổ hợp EMA và RSI khác nhau
     ema_options = [10, 20, 30, 40]
     rsi_options = [7, 10, 14, 21]
     
+    # 2.1 Tích hợp Vòng lặp phản hồi: Lấy thêm các tham số từ manual backtest
+    try:
+        archive_data = gs.get_sheet_data("backtest_archive")
+        if archive_data:
+            for row in archive_data:
+                # Nếu một bộ tham số manual có WR > 60%, ưu tiên đưa vào test lại
+                if float(row.get('WinRate', 0)) > 60:
+                    ema_val = int(row.get('EMA', 0))
+                    rsi_val = int(row.get('RSI', 0))
+                    if ema_val > 0 and rsi_val > 0:
+                        if ema_val not in ema_options: ema_options.append(ema_val)
+                        if rsi_val not in rsi_options: rsi_options.append(rsi_val)
+            print(f"Loop Feedback: Added {len(archive_data)} potential candidates from archive.")
+    except Exception as e:
+        print(f"Skip archive feedback: {e}")
+
     best_score = -999
     best_params = None
     best_stats = None

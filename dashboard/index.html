@@ -653,6 +653,12 @@
                         <div class="stat-label">Total Trades</div>
                         <div class="stat-value" id="bt-res-total">--</div>
                     </div>
+                    <div class="stat-card" id="apply-bt-card"
+                        style="cursor:pointer; border:1px solid var(--accent-color); background: rgba(46, 160, 67, 0.1);"
+                        onclick="applyBacktest()">
+                        <div class="stat-label" style="color:var(--accent-color)">Action</div>
+                        <div class="stat-value" style="font-size: 1rem;">SAVE & APPLY</div>
+                    </div>
                 </div>
 
                 <div class="table-container">
@@ -922,6 +928,34 @@
             document.getElementById('bt-res-score').innerText = (wins * 2 - losses);
             document.getElementById('bt-summary').style.display = 'grid';
             document.getElementById('bt-status').innerText = 'Finished';
+
+            // Store current results for applying
+            window.LAST_BT_RESULT = {
+                ema: document.getElementById('bt-ema').value,
+                rsi: document.getElementById('bt-rsi').value,
+                wr: wr,
+                total: results.length,
+                score: (wins * 2 - losses)
+            };
+        }
+
+        async function applyBacktest() {
+            if (!window.LAST_BT_RESULT) return;
+
+            if (!confirm(`Apply EMA=${window.LAST_BT_RESULT.ema} and RSI=${window.LAST_BT_RESULT.rsi} to the live system?`)) return;
+
+            document.getElementById('bt-status').innerText = 'Applying to System...';
+            try {
+                const res = await fetch(`${WEB_APP_URL}?cmd=save_bt&ema=${window.LAST_BT_RESULT.ema}&rsi=${window.LAST_BT_RESULT.rsi}&wr=${window.LAST_BT_RESULT.wr}&total=${window.LAST_BT_RESULT.total}&score=${window.LAST_BT_RESULT.score}`);
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    alert('Strategy updated successfully! Live analyzer will use these parameters in the next cycle.');
+                    document.getElementById('bt-status').innerText = 'Updated!';
+                    loadData(); // Refresh UI
+                }
+            } catch (e) {
+                alert('Error applying strategy: ' + e);
+            }
         }
 
         window.onload = loadData;

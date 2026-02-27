@@ -23,7 +23,8 @@ def setup_sheets():
         "model_results": ["ID", "Timestamp", "ModelName", "Direction", "Entry", "TP", "SL", "Confidence", "Params", "State", "ClosedAt", "Outcome", "Notes"],
         "logs": ["Timestamp", "Message"],
         "market_data": ["Timestamp", "Symbol", "Open", "High", "Low", "Close", "Volume"],
-        "learning_history": ["Timestamp", "EMA", "RSI", "WinRate", "TotalTrades", "Score"]
+        "learning_history": ["Timestamp", "EMA", "RSI", "WinRate", "TotalTrades", "Score"],
+        "backtest_archive": ["Timestamp", "EMA", "RSI", "WinRate", "TotalTrades", "Score", "Source"]
     }
 
     for sheet_name, columns in structure.items():

@@ -12,6 +12,13 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  if (e && e.parameter && e.parameter.cmd === 'save_bt') {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    saveBacktestResult(ss, e.parameter);
+    return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Quantix Terminal')
@@ -160,4 +167,21 @@ function getQuickStats(ss) {
     win_rate: wr,
     model: currentModel
   };
+}
+
+function saveBacktestResult(ss, p) {
+  var archiveSheet = ss.getSheetByName('backtest_archive');
+  var configSheet = ss.getSheetByName('config');
+  
+  // Archiving
+  archiveSheet.appendRow([
+    new Date(), p.ema, p.rsi, p.wr, p.total, p.score, 'DASHBOARD_MANUAL'
+  ]);
+  
+  // Update Config
+  var configData = configSheet.getDataRange().getValues();
+  for (var i = 1; i < configData.length; i++) {
+    if (configData[i][0] == 'ema_period') configSheet.getRange(i+1, 2).setValue(p.ema);
+    if (configData[i][0] == 'rsi_period') configSheet.getRange(i+1, 2).setValue(p.rsi);
+  }
 }
