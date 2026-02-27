@@ -27,8 +27,29 @@ function getDashboardData() {
     history: getSignalHistory(ss),
     logs: getSystemLogs(ss),
     stats: getQuickStats(ss),
-    learning: getLearningHistory(ss)
+    learning: getLearningHistory(ss),
+    market: getMarketData(ss)
   };
+}
+
+function getMarketData(ss) {
+  var sheet = ss.getSheetByName('market_data');
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  var market = [];
+  
+  // Lấy 300 nến gần nhất để backtest
+  var start = Math.max(1, data.length - 300);
+  for (var i = start; i < data.length; i++) {
+    market.push({
+      time: data[i][0],
+      open: data[i][2],
+      high: data[i][3],
+      low: data[i][4],
+      close: data[i][5]
+    });
+  }
+  return market;
 }
 
 function getLearningHistory(ss) {

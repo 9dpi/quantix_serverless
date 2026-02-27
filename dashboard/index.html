@@ -305,6 +305,27 @@
             }
         }
 
+        .backtest-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: rgba(48, 54, 61, 0.2);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .backtest-input {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--accent-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+            width: 80px;
+            font-family: inherit;
+        }
+
         .hidden {
             display: none;
         }
@@ -536,6 +557,10 @@
                 <span class="desktop-only">PROMPT > ./SELF_LEARN</span>
                 <span class="mobile-only">Learning</span>
             </div>
+            <div class="tab" onclick="switchTab('backtest', this)">
+                <span class="desktop-only">PROMPT > ./SIMULATOR</span>
+                <span class="mobile-only">Backtest</span>
+            </div>
             <div class="tab" onclick="switchTab('logs', this)">
                 <span class="desktop-only">PROMPT > ./SYSTEM_RAW</span>
                 <span class="mobile-only">System</span>
@@ -597,22 +622,54 @@
                 </div>
             </div>
 
-            <!-- Learning History View -->
-            <div id="view-learning" class="hidden">
-                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] LEARNING_OPTIMIZATION_LOG</h3>
+            <!-- Backtest View -->
+            <div id="view-backtest" class="hidden">
+                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] INTERACTIVE_STRATEGY_SIMULATOR</h3>
+
+                <div class="backtest-controls">
+                    <div>
+                        <span class="stat-label">EMA Period:</span>
+                        <input type="number" id="bt-ema" class="backtest-input" value="20">
+                    </div>
+                    <div>
+                        <span class="stat-label">RSI Period:</span>
+                        <input type="number" id="bt-rsi" class="backtest-input" value="14">
+                    </div>
+                    <button onclick="runBacktest()" class="auth-btn" style="padding: 5px 20px;">SIMULATE</button>
+                    <div id="bt-status" style="margin-left: auto; color: var(--dim-text); font-size: 0.8rem;">Ready
+                    </div>
+                </div>
+
+                <div id="bt-summary" class="grid-stats" style="margin-bottom: 20px; display:none;">
+                    <div class="stat-card">
+                        <div class="stat-label">Win Rate</div>
+                        <div class="stat-value" id="bt-res-wr">--%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Profit Score</div>
+                        <div class="stat-value" id="bt-res-score">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Trades</div>
+                        <div class="stat-value" id="bt-res-total">--</div>
+                    </div>
+                </div>
+
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>EMA</th>
-                                <th>RSI</th>
-                                <th>Win Rate</th>
-                                <th>Trades</th>
-                                <th>Score</th>
+                                <th>Time</th>
+                                <th>Direction</th>
+                                <th>Entry</th>
+                                <th>Outcome</th>
                             </tr>
                         </thead>
-                        <tbody id="learning-history-body">
+                        <tbody id="bt-results-body">
+                            <tr>
+                                <td colspan="4" style="text-align:center; color:var(--dim-text)">Enter parameters and
+                                    press SIMULATE</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -659,7 +716,7 @@
 
         function switchTab(tabName, element) {
             const tabs = document.querySelectorAll('.tab');
-            const views = ['dashboard', 'signals', 'logs', 'performance', 'learning'];
+            const views = ['dashboard', 'signals', 'logs', 'performance', 'learning', 'backtest'];
 
             tabs.forEach(tab => tab.classList.remove('active'));
             if (element) {
@@ -740,24 +797,131 @@
                 historyBody.innerHTML += row;
             });
 
-            // Learning History
-            const learnBody = document.getElementById('learning-history-body');
-            learnBody.innerHTML = '';
-            if (data.learning && data.learning.length > 0) {
-                data.learning.forEach(l => {
-                    const row = `<tr>
-                        <td data-label="DATE">${l.time}</td>
-                        <td data-label="EMA">${l.ema}</td>
-                        <td data-label="RSI">${l.rsi}</td>
-                        <td data-label="WIN RATE">${l.wr}%</td>
-                        <td data-label="TRADES">${l.total}</td>
-                        <td data-label="SCORE">${l.score}</td>
-                    </tr>`;
-                    learnBody.innerHTML += row;
-                });
-            } else {
-                learnBody.innerHTML = '<tr><td colspan="6" style="text-align:center">No optimization data yet. Waiting for next cycle...</td></tr>';
+            // Store data for backtest
+            window.MARKET_DATA = data.market;
+        }
+
+        // --- BACKTEST ENGINE JS ---
+        function runBacktest() {
+            if (!window.MARKET_DATA || window.MARKET_DATA.length < 50) {
+                alert('Not enough market data to simulate. Please wait for more data accumulation.');
+                return;
             }
+
+            const emaPeriod = parseInt(document.getElementById('bt-ema').value);
+            const rsiPeriod = parseInt(document.getElementById('bt-rsi').value);
+            document.getElementById('bt-status').innerText = 'Calculating...';
+
+            const prices = window.MARKET_DATA.map(d => d.close);
+            const ema = calculateEMA(prices, emaPeriod);
+            const rsi = calculateRSI(prices, rsiPeriod);
+
+            const results = [];
+            const tpPips = 0.0020;
+            const slPips = 0.0010;
+
+            for (let i = 30; i < window.MARKET_DATA.length - 10; i++) {
+                const last = window.MARKET_DATA[i];
+                const prev = window.MARKET_DATA[i - 1];
+                let signal = null;
+
+                // Simple EMA/RSI logic matched with Python model
+                if (prev.close < ema[i - 1] && last.close > ema[i] && rsi[i] < 50) {
+                    signal = 'BUY';
+                } else if (prev.close > ema[i - 1] && last.close < ema[i] && rsi[i] > 50) {
+                    signal = 'SELL';
+                }
+
+                if (signal) {
+                    const entry = last.close;
+                    const tp = signal === 'BUY' ? entry + tpPips : entry - tpPips;
+                    const sl = signal === 'BUY' ? entry - slPips : entry + slPips;
+                    let outcome = 'EXPIRED';
+
+                    // Scan future candles
+                    for (let j = i + 1; j < Math.min(i + 20, window.MARKET_DATA.length); j++) {
+                        const future = window.MARKET_DATA[j];
+                        if (signal === 'BUY') {
+                            if (future.high >= tp) { outcome = 'WIN'; break; }
+                            if (future.low <= sl) { outcome = 'LOSS'; break; }
+                        } else {
+                            if (future.low <= tp) { outcome = 'WIN'; break; }
+                            if (future.high >= sl) { outcome = 'LOSS'; break; }
+                        }
+                    }
+
+                    results.push({ time: last.time, dir: signal, entry: entry.toFixed(5), outcome: outcome });
+                }
+            }
+
+            renderBacktestResults(results);
+        }
+
+        function calculateEMA(data, period) {
+            const k = 2 / (period + 1);
+            let ema = [data[0]];
+            for (let i = 1; i < data.length; i++) {
+                ema.push(data[i] * k + ema[i - 1] * (1 - k));
+            }
+            return ema;
+        }
+
+        function calculateRSI(prices, period) {
+            let rsi = new Array(prices.length).fill(50);
+            let gains = 0, losses = 0;
+
+            for (let i = 1; i <= period; i++) {
+                let diff = prices[i] - prices[i - 1];
+                if (diff >= 0) gains += diff; else losses -= diff;
+            }
+
+            let avgGain = gains / period;
+            let avgLoss = losses / period;
+
+            for (let i = period + 1; i < prices.length; i++) {
+                let diff = prices[i] - prices[i - 1];
+                let currentGain = diff >= 0 ? diff : 0;
+                let currentLoss = diff < 0 ? -diff : 0;
+
+                avgGain = (avgGain * (period - 1) + currentGain) / period;
+                avgLoss = (avgLoss * (period - 1) + currentLoss) / period;
+
+                let rs = avgGain / avgLoss;
+                rsi[i] = 100 - (100 / (1 + rs));
+            }
+            return rsi;
+        }
+
+        function renderBacktestResults(results) {
+            const body = document.getElementById('bt-results-body');
+            body.innerHTML = '';
+
+            if (results.length === 0) {
+                body.innerHTML = '<tr><td colspan="4" style="text-align:center">No signals found with these parameters in history.</td></tr>';
+                document.getElementById('bt-summary').style.display = 'none';
+                document.getElementById('bt-status').innerText = 'Finished (0 signals)';
+                return;
+            }
+
+            let wins = 0, losses = 0;
+            results.forEach(r => {
+                if (r.outcome === 'WIN') wins++;
+                if (r.outcome === 'LOSS') losses++;
+                const outcomeClass = r.outcome === 'WIN' ? 'status-win' : (r.outcome === 'LOSS' ? 'status-loss' : '');
+                body.innerHTML += `<tr>
+                    <td>${r.time}</td>
+                    <td class="signal-${r.dir.toLowerCase()}">${r.dir}</td>
+                    <td>${r.entry}</td>
+                    <td><span class="badge ${outcomeClass}">${r.outcome}</span></td>
+                </tr>`;
+            });
+
+            const wr = ((wins / (wins + losses || 1)) * 100).toFixed(1);
+            document.getElementById('bt-res-wr').innerText = wr + '%';
+            document.getElementById('bt-res-total').innerText = results.length;
+            document.getElementById('bt-res-score').innerText = (wins * 2 - losses);
+            document.getElementById('bt-summary').style.display = 'grid';
+            document.getElementById('bt-status').innerText = 'Finished';
         }
 
         window.onload = loadData;
