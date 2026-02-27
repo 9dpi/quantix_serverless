@@ -22,32 +22,48 @@ class EMARSIModel(TradingModel):
         rs = gain / loss
         df['rsi'] = 100 - (100 / (1 + rs))
 
-        last_row = df.iloc[-1]
-        prev_row = df.iloc[-2]
+        last_candle = df.iloc[-1]
+        prev_candle = df.iloc[-2]
 
-        print(f"DEBUG: Price: {last_row['close']}, EMA: {last_row['ema']:.5f}, RSI: {last_row['rsi']:.2f}")
+        last_close = last_candle['close']
+        prev_close = prev_candle['close']
+        last_ema = last_candle['ema']
+        prev_ema = prev_candle['ema']
+        last_rsi = last_candle['rsi']
+        prev_rsi = prev_candle['rsi']
 
-        # Chiến thuật đơn giản: Giá cắt EMA và RSI quá mua/quá bán
-        # BUY: Giá từ dưới cắt lên EMA và RSI < 50 (Thoáng hơn để test)
-        if prev_row['close'] < prev_row['ema'] and last_row['close'] > last_row['ema'] and last_row['rsi'] < 50:
-            return {
-                'direction': 'BUY',
-                'entry': last_row['close'],
-                'tp': last_row['close'] + 0.0020, # 20 pips
-                'sl': last_row['close'] - 0.0010, # 10 pips
-                'confidence': 0.7
-            }
+        last_rsi = last_candle['rsi']
+        prev_rsi = prev_candle['rsi']
+
+        print(f"--- [DIAGNOSTIC] EURUSD M15 ---")
+        print(f"Price: {prev_close:.5f} -> {last_close:.5f}")
+        print(f"EMA:   {prev_ema:.5f} -> {last_ema:.5f}")
+        print(f"RSI:   {last_rsi:.2f}")
+
+        # BUY Logic Diagnostic
+        if last_close > last_ema and prev_close < prev_ema:
+            if last_rsi < 50:
+                print(">>> SIGNAL FOUND: BUY")
+                return {
+                    'direction': 'BUY', 'entry': last_close,
+                    'tp': last_close + 0.0020, 'sl': last_close - 0.0010,
+                    'confidence': 0.75, 'datetime': last_candle.name
+                }
+            else:
+                print(f"!!! BUY REJECTED: RSI {last_rsi:.2f} is too high (must < 50)")
+        elif last_close < last_ema and prev_close > prev_ema:
+            if last_rsi > 50:
+                print(">>> SIGNAL FOUND: SELL")
+                return {
+                    'direction': 'SELL', 'entry': last_close,
+                    'tp': last_close - 0.0020, 'sl': last_close + 0.0010,
+                    'confidence': 0.75, 'datetime': last_candle.name
+                }
+            else:
+                print(f"!!! SELL REJECTED: RSI {last_rsi:.2f} is too low (must > 50)")
+        else:
+            print(">>> NO CROSS DETECTED: Price stable relative to EMA")
         
-        # SELL: Giá từ trên cắt xuống EMA và RSI > 50
-        if prev_row['close'] > prev_row['ema'] and last_row['close'] < last_row['ema'] and last_row['rsi'] > 50:
-            return {
-                'direction': 'SELL',
-                'entry': last_row['close'],
-                'tp': last_row['close'] - 0.0020,
-                'sl': last_row['close'] + 0.0010,
-                'confidence': 0.7
-            }
-
         return None
 
     def get_params(self):
