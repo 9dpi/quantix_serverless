@@ -803,8 +803,42 @@
                 historyBody.innerHTML += row;
             });
 
+            // Learning History rendering
+            const learnBody = document.getElementById('learning-history-body');
+            if (learnBody) {
+                learnBody.innerHTML = '';
+                if (data.learning && data.learning.length > 0) {
+                    data.learning.forEach(l => {
+                        learnBody.innerHTML += `<tr>
+                            <td data-label="DATE">${l.time}</td>
+                            <td data-label="EMA">${l.ema}</td>
+                            <td data-label="RSI">${l.rsi}</td>
+                            <td data-label="WR">${l.wr}%</td>
+                            <td data-label="TRADES">${l.total}</td>
+                            <td data-label="SCORE">${l.score}</td>
+                        </tr>`;
+                    });
+                } else {
+                    learnBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Waiting for optimization data...</td></tr>';
+                }
+            }
+
+            // Logs rendering
+            const logContainer = document.getElementById('log-container');
+            if (logContainer) {
+                logContainer.innerHTML = '';
+                if (data.logs) {
+                    data.logs.forEach(l => {
+                        logContainer.innerHTML += `<div class="log-line">
+                            <span class="log-timestamp">[${l.time}]</span>
+                            <span class="log-${l.type}">${l.msg}</span>
+                        </div>`;
+                    });
+                }
+            }
+
             // Store data for backtest
-            window.MARKET_DATA = data.market;
+            window.MARKET_DATA = data.market || [];
         }
 
         // --- BACKTEST ENGINE JS ---
