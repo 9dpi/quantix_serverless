@@ -70,6 +70,17 @@ def self_learning():
             if row['key'] == 'rsi_period':
                 gs.update_cell("config", row_idx, 2, best_params['rsi_period'])
         
+        # 4. Ghi lại lịch sử học tập vào sheet riêng
+        learn_row = [
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            best_params['ema_period'],
+            best_params['rsi_period'],
+            best_stats['win_rate'],
+            best_stats['total'],
+            best_stats['profit_score']
+        ]
+        gs.append_row("learning_history", learn_row)
+        
         # Log lại kết quả học tập
         log_msg = f"SELF-LEARNING COMPLETED: Optimized EMA={best_params['ema_period']}, RSI={best_params['rsi_period']}. WR: {best_stats['win_rate']}%"
         gs.append_row("logs", [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), log_msg])

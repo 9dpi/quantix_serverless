@@ -22,7 +22,8 @@ def setup_sheets():
         "signals": ["ID", "Timestamp", "Pair", "Direction", "Entry", "TP", "SL", "State", "CreatedAt", "UpdatedAt", "EntryTime", "CloseTime", "Notes", "Outcome"],
         "model_results": ["ID", "Timestamp", "ModelName", "Direction", "Entry", "TP", "SL", "Confidence", "Params", "State", "ClosedAt", "Outcome", "Notes"],
         "logs": ["Timestamp", "Message"],
-        "market_data": ["Timestamp", "Symbol", "Open", "High", "Low", "Close", "Volume"]
+        "market_data": ["Timestamp", "Symbol", "Open", "High", "Low", "Close", "Volume"],
+        "learning_history": ["Timestamp", "EMA", "RSI", "WinRate", "TotalTrades", "Score"]
     }
 
     for sheet_name, columns in structure.items():

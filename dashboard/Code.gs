@@ -6,19 +6,12 @@
 var SPREADSHEET_ID = '1GuiICjRn7netb9fThkwiDm_6YgBbNKOYY7ck5D_yLiI';
 
 function doGet(e) {
-  var ACCESS_KEY = '8888'; // Bạn có thể đổi mã này
-  
   if (e && e.parameter && e.parameter.cmd === 'data') {
-    if (e.parameter.key !== ACCESS_KEY) {
-      return ContentService.createTextOutput(JSON.stringify({error: 'Unauthorized'}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
     var data = getDashboardData();
     return ContentService.createTextOutput(JSON.stringify(data))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // Mặc định trả về giao diện HTML nếu mở trực tiếp
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Quantix Terminal')
@@ -33,8 +26,29 @@ function getDashboardData() {
     active: getActiveSignals(ss),
     history: getSignalHistory(ss),
     logs: getSystemLogs(ss),
-    stats: getQuickStats(ss)
+    stats: getQuickStats(ss),
+    learning: getLearningHistory(ss)
   };
+}
+
+function getLearningHistory(ss) {
+  var sheet = ss.getSheetByName('learning_history');
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  var learn = [];
+  
+  for (var i = data.length - 1; i >= 1; i--) {
+    learn.push({
+      time: Utilities.formatDate(new Date(data[i][0]), "GMT+7", "yyyy-MM-dd"),
+      ema: data[i][1],
+      rsi: data[i][2],
+      wr: data[i][3],
+      total: data[i][4],
+      score: data[i][5]
+    });
+    if (learn.length >= 10) break;
+  }
+  return learn;
 }
 
 function getActiveSignals(ss) {

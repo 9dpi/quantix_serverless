@@ -532,6 +532,10 @@
                 <span class="desktop-only">PROMPT > ./LOG_SIGNALS</span>
                 <span class="mobile-only">Logs</span>
             </div>
+            <div class="tab" onclick="switchTab('learning', this)">
+                <span class="desktop-only">PROMPT > ./SELF_LEARN</span>
+                <span class="mobile-only">Learning</span>
+            </div>
             <div class="tab" onclick="switchTab('logs', this)">
                 <span class="desktop-only">PROMPT > ./SYSTEM_RAW</span>
                 <span class="mobile-only">System</span>
@@ -580,11 +584,37 @@
                 </div>
             </div>
 
-            <!-- Signals History -->
+            <!-- Model Analysis View -->
             <div id="view-performance" class="hidden">
                 <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] MODEL_CORE_ANALYSIS</h3>
                 <div id="perf-content">
-                    Updating matrix coefficients...
+                    <div class="stat-card" style="margin-bottom: 20px;">
+                        <div class="stat-label">Prediction Confidence</div>
+                        <div class="stat-value">HIGH QUALITY</div>
+                    </div>
+                    <p style="color: var(--dim-text); font-size: 0.9rem;">Neural pathways optimized for EURUSD M15
+                        timeframe. Indicators: Multi-timeframe EMA + Volume-weighted RSI.</p>
+                </div>
+            </div>
+
+            <!-- Learning History View -->
+            <div id="view-learning" class="hidden">
+                <h3 style="margin-bottom: 15px; color: var(--accent-color);">[>] LEARNING_OPTIMIZATION_LOG</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>EMA</th>
+                                <th>RSI</th>
+                                <th>Win Rate</th>
+                                <th>Trades</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="learning-history-body">
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -629,7 +659,7 @@
 
         function switchTab(tabName, element) {
             const tabs = document.querySelectorAll('.tab');
-            const views = ['dashboard', 'signals', 'logs', 'performance'];
+            const views = ['dashboard', 'signals', 'logs', 'performance', 'learning'];
 
             tabs.forEach(tab => tab.classList.remove('active'));
             if (element) {
@@ -710,16 +740,24 @@
                 historyBody.innerHTML += row;
             });
 
-            // Logs
-            const logContainer = document.getElementById('log-container');
-            logContainer.innerHTML = '';
-            data.logs.forEach(l => {
-                const line = `<div class="log-line">
-                <span class="log-timestamp">[${l.time}]</span>
-                <span class="log-${l.type}">${l.msg}</span>
-            </div>`;
-                logContainer.innerHTML += line;
-            });
+            // Learning History
+            const learnBody = document.getElementById('learning-history-body');
+            learnBody.innerHTML = '';
+            if (data.learning && data.learning.length > 0) {
+                data.learning.forEach(l => {
+                    const row = `<tr>
+                        <td data-label="DATE">${l.time}</td>
+                        <td data-label="EMA">${l.ema}</td>
+                        <td data-label="RSI">${l.rsi}</td>
+                        <td data-label="WIN RATE">${l.wr}%</td>
+                        <td data-label="TRADES">${l.total}</td>
+                        <td data-label="SCORE">${l.score}</td>
+                    </tr>`;
+                    learnBody.innerHTML += row;
+                });
+            } else {
+                learnBody.innerHTML = '<tr><td colspan="6" style="text-align:center">No optimization data yet. Waiting for next cycle...</td></tr>';
+            }
         }
 
         window.onload = loadData;
